@@ -1,5 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:fooddeliveryapp/components/my_current_location.dart';
+import 'package:fooddeliveryapp/components/my_description_box.dart';
 import 'package:fooddeliveryapp/components/my_drawer.dart';
+import 'package:fooddeliveryapp/components/my_sliver_app_bar.dart';
+import 'package:fooddeliveryapp/components/my_tab_bar.dart';
+import 'package:fooddeliveryapp/models/food.dart';
+import 'package:fooddeliveryapp/models/restaurant.dart';
+import 'package:fooddeliveryapp/pages/food_page.dart';
+import 'package:provider/provider.dart';
+import 'package:fooddeliveryapp/components/my_food_tile.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -8,14 +17,83 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin{
+
+  late TabController _tabController;
+
   @override
-  Widget build(BuildContext context) {
-     return Scaffold(
-      appBar: AppBar(title: Text("Home"),),
-      drawer: MyDrawer(),
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: FoodCategory.values.length, vsync: this);
+  }
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
+  List<Food> _filterMenuByCategory(FoodCategory category, List<Food> fullMenu) {
+    return fullMenu.where((food) => food.category == category).toList();
+  }
 
+  // Returns a list of widgets displaying foods in each given category
+List<Widget> getFoodInThisCategory(List<Food> fullMenu) {
+  // Iterate over each category in the FoodCategory enum
+  return FoodCategory.values.map((category) {
+    // Filter the full menu to only include foods that match the current category
+    List<Food> categoryMenu = _filterMenuByCategory(category, fullMenu);
+
+    // Build a ListView to display the items in the current category
+    return ListView.builder(
+      // Set the number of items in the list based on the filtered menu length
+      itemCount: categoryMenu.length,
+      // Disable scrolling within this ListView
+      physics: const NeverScrollableScrollPhysics(),
+      padding: EdgeInsets.zero,
+      // Define how each item in the list should look
+      itemBuilder: (context, index) {
+        final food = categoryMenu[index];
+        return FoodTile(food: food, onTap: () => Navigator.push(
+          context, 
+          MaterialPageRoute(builder: (context) => FoodPage(food:food),),
+        ));
+      }, // End of ListTile
+    ); // End of ListView.builder
+  }).toList(); // Convert the map result to a List of Widgets
+}
+  
+    @override
+    Widget build(BuildContext context) {
+      return Scaffold(
+        drawer: const MyDrawer(),
+        body: NestedScrollView(
+          headerSliverBuilder: (context, innerBoxIsScrolled) => [
+            MySliverAppBar(
+              title: MyTabBar(tabController: _tabController),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  Divider(
+                    indent: 25,
+                    endIndent: 25,
+                    color: Theme.of(context).colorScheme.secondary,
+                  ),
+                  // my_current_location
+                  const MyCurrentLocation(),
+
+                  // description box
+                  const MyDescriptionBox(),
+                ],
+              ),
+            ),
+          ],
+         body: Consumer<Restaurant>(
+            builder: (context, restaurant, child) => TabBarView(
+              controller: _tabController,
+              children: getFoodInThisCategory(restaurant.menu),
+            ), // TabBarView
+          ),
+         ), // Consumer
     );
   }
 }
